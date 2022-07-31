@@ -15,7 +15,17 @@ body {
 }
 
 
+@font-face {
+  font-family: "Neutral";
+  src: url("./NeutralFace-Bold.otf") format("truetype");
+  font-weight: bold;
+}
 
+@font-face {
+  font-family: "Neutral";
+  src: url("./NeutralFace.otf") format("truetype");
+  font-weight: normal;
+}
 
 code, pre {
   font-family:'JetBrains Mono', source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;

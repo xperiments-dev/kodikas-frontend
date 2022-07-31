@@ -8,7 +8,8 @@ import { FolderIcon } from '@heroicons/react/solid';
 import { DocumentTextIcon } from '@heroicons/react/outline';
 import axios from 'axios';
 import { response } from './constants';
-import { Routes } from 'react-router-dom';
+import { Routes, useParams, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 const Layout = styled('main', {
   display: 'grid',
   // gridTemplateColumns: '300px 1fr',
@@ -66,26 +67,39 @@ const SidebarItem = styled('div', {
 });
 
 function App() {
+  const latestCommitId = useSearchParams()[0].get('latest_commit_id');
+  console.log(latestCommitId, 'LATEST_COMMIT_ID');
   const [changedCode, setChangedCode] = useState(response.changed_file);
   const [originalCode, setOriginalCode] = useState(response.original_file);
   const [filePath, setFilePath] = useState(response.file_path);
 
-  // curl --location --request GET 'http://139.59.14.101/commit-data/'
-  // useEffect(() => {
-  //   axios
-  //     .get(
-  //       'https://kodikas.xperiments.dev/commit-data/?commit_id=b671a4c04bab9f504ff913015322e91cae95e366'
-  //     )
-  //     .then((res) => {
-  //       console.log(res, 'RES');
-  //       setChangedCode(res.data.changed_file);
-  //       setOriginalCode(res.data.original_file);
-  //       setFilePath(res.data.file_path);
-  //     });
-  // }, []);
+  const { data, isLoading } = useQuery<{
+    changed_file: string;
+    original_file: string;
+    file_path: string;
+  }>(
+    ['commit'],
+    async () =>
+      await await (
+        await axios.get(
+          `https://kodikas.xperiments.dev/commit-data/?commit_id=${latestCommitId}`
+        )
+      ).data,
+    {
+      refetchOnWindowFocus: false,
+    }
+  );
+  console.log(data, 'DATA');
 
-  const stringArray = String(originalCode).split('\\n');
-  const changeStringArray = String(changedCode).split('\\n');
+  useEffect(() => {
+    if (data) {
+      setOriginalCode(data?.original_file);
+      setChangedCode(data?.changed_file);
+    }
+  }, [data]);
+
+  const stringArray = String(originalCode).split('\n');
+  const changeStringArray = String(changedCode).split('\n');
   // console.log(stringArray, 'STRING');
   let finalMultiLineString = ``;
   let changedMultilineString = ``;
@@ -110,7 +124,8 @@ function App() {
         .closest('tr')
         .querySelectorAll(`.${selectedClassName}`)[0].textContent
     );
-    selectedLineNumberElement.closest('tr').style.backgroundColor = '#485201';
+    selectedLineNumberElement.closest('tr').style.backgroundColor =
+      'rgb(154 99 223 / 58%)';
     const [splitDirection, lineNumber] = lineId.split('-');
 
     console.log(
@@ -134,7 +149,7 @@ function App() {
 
     const leftSideString = l.reduce((accum, currentString, currentIndex) => {
       if (currentIndex !== 0) {
-        return accum + '\\n' + currentString;
+        return accum + '\n' + currentString;
       }
       return currentString;
     }, '');
@@ -159,11 +174,13 @@ function App() {
         </SidebarItem>
       </Sidebar> */}
         <div>
-          <CodeDiff
-            oldCode={finalMultiLineString}
-            newCode={changedMultilineString}
-            onLineNumberClick={onLineNumberClick}
-          />{' '}
+          {!isLoading && (
+            <CodeDiff
+              oldCode={finalMultiLineString}
+              newCode={changedMultilineString}
+              onLineNumberClick={onLineNumberClick}
+            />
+          )}
         </div>
       </Layout>
     </>
