@@ -9,7 +9,8 @@ import { DocumentTextIcon } from '@heroicons/react/outline';
 import axios from 'axios';
 import { response } from './constants';
 import { Routes, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useRepos } from './utils/hooks';
 const Layout = styled('main', {
   display: 'grid',
   // gridTemplateColumns: '300px 1fr',
@@ -66,6 +67,29 @@ const SidebarItem = styled('div', {
   },
 });
 
+const AutoCommitBtn = styled('button', {
+  background: '#238636',
+  color: 'white',
+  padding: '5px 16px',
+  borderRadius: '6px',
+  border: '1px solid rgba(240,246,252,0.1)',
+  fontFamily: 'JetBrains Mono',
+  cursor: 'pointer',
+  '&:hover': {
+    background: '#2ea043',
+  },
+});
+
+const postAutoCommitData = (newCommitData: {
+  file_name: String;
+  file_data: String;
+}) => {
+  return axios.post(
+    'https://kodikas.xperiments.dev/auto-commit',
+    newCommitData
+  );
+};
+
 function App() {
   const latestCommitId = useSearchParams()[0].get('latest_commit_id');
   console.log(latestCommitId, 'LATEST_COMMIT_ID');
@@ -73,22 +97,13 @@ function App() {
   const [originalCode, setOriginalCode] = useState(response.original_file);
   const [filePath, setFilePath] = useState(response.file_path);
 
-  const { data, isLoading } = useQuery<{
-    changed_file: string;
-    original_file: string;
-    file_path: string;
-  }>(
-    ['commit'],
-    async () =>
-      await await (
-        await axios.get(
-          `https://kodikas.xperiments.dev/commit-data/?commit_id=${latestCommitId}`
-        )
-      ).data,
-    {
-      refetchOnWindowFocus: false,
-    }
-  );
+  const { data, isLoading } = useRepos(latestCommitId || '');
+  const {
+    mutateAsync,
+    isSuccess,
+    isLoading: isMutatingCommit,
+  } = useMutation(postAutoCommitData);
+
   console.log(data, 'DATA');
 
   useEffect(() => {
@@ -158,11 +173,28 @@ function App() {
     setOriginalCode(leftSideString);
   };
 
+  const postCommitData = () => {
+    console.log('possoososos', originalCode);
+    mutateAsync({
+      file_name: 'xyz.py',
+      file_data: originalCode,
+    }).then(() => {
+      console.log('successs.....');
+    });
+  };
+
   return (
     <>
       <Layout>
-        {/* <Sidebar>
-        <SidebarItem folder>
+        <Sidebar>
+          <AutoCommitBtn onClick={() => postCommitData()}>
+            {isMutatingCommit
+              ? 'Loading...'
+              : isSuccess
+              ? 'Committed'
+              : ' Auto-commit ⚡️'}
+          </AutoCommitBtn>
+          {/* <SidebarItem folder>
           <FolderIcon /> src/components
         </SidebarItem>
         <SidebarItem depth="1">
@@ -171,14 +203,15 @@ function App() {
         <SidebarItem depth="2" file>
           <DocumentTextIcon />
           Layout.tsx
-        </SidebarItem>
-      </Sidebar> */}
+        </SidebarItem> */}
+        </Sidebar>
         <div>
           {!isLoading && (
             <CodeDiff
               oldCode={finalMultiLineString}
               newCode={changedMultilineString}
               onLineNumberClick={onLineNumberClick}
+              fileName={response.file_path}
             />
           )}
         </div>
